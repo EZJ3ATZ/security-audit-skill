@@ -5,9 +5,19 @@ Uma [skill](https://docs.anthropic.com/en/docs/claude-code/skills) de Claude Cod
 difíceis** sobre código que você está autorizado a analisar. Whitebox por padrão;
 blackbox/DAST sob demanda.
 
-Não é um scanner. É um **segundo especialista criterioso** — o revisor que acha o que a
-revisão convencional deixa passar: o controle *ausente*, o erro de lógica de negócio, a
-race condition, a cadeia de achados pequenos que juntos viram um caminho crítico.
+Não é *só* um scanner. Ela **roda o ferramental determinístico** (secret-scan, SAST,
+auditoria de dependência) como triagem e **raciocina por cima** — é o segundo especialista
+criterioso que acha o que a revisão convencional deixa passar: o controle *ausente*, o erro
+de lógica de negócio, a race condition, a cadeia de achados pequenos que juntos viram um
+caminho crítico.
+
+## Comece pelo link (link-first)
+
+O primeiro passo é dar a ela **a URL do sistema a auditar** — a auditoria começa pelo sistema
+**vivo**, não por um trecho de código solto. Um atacante real não abre o seu repositório; ele
+abre o seu site. Dado um link, a skill roda de ponta a ponta: mapeia a superfície pela URL
+(Fase 1), confirma no código se você fornecer o repo (Fase 2), e entrega o relatório por
+severidade. Sem URL, ela cai direto no whitebox — não trava.
 
 ## O diferencial: protocolo invasor-primeiro (duas fases)
 
@@ -30,14 +40,37 @@ red team de code review comum.
 ## Como usa
 
 - **Whitebox (padrão):** lê o código-fonte, rastreia o dado da fonte não confiável ao sink.
+- **Ferramental cabeado:** `py tools/scan.py <alvo> [--include-deps]` orquestra
+  **detect-secrets** (segredos), **bandit** (SAST Python) e **pip-audit** (CVE de deps), e
+  roda gitleaks/semgrep/npm audit se presentes. A saída é **triagem, não veredito** — a skill
+  confirma cada candidato por rastreio (secret-scan e deps pegam o que o raciocínio não pega;
+  o SAST costuma ter falso-positivo, então cada hit passa pelo portão).
 - **Blackbox / DAST (opt-in):** bate no app publicado de fora (headers, flags de cookie,
-  endpoint alcançável, auth de fato aplicada) — só quando você pede ou passa uma URL.
+  endpoint alcançável, auth de fato aplicada) — quando você pede ou passa uma URL.
 - **Portão de validação:** todo achado ≥Médio passa por 6 perguntas (alcançável? sem
   mitigação no caminho? cenário concreto? contraprova falhou? severidade contextual? fato ou
   hipótese?) antes de virar relatório. Falhou uma → rebaixa. É a diferença entre relatório e ruído.
 - **Chaining:** achados nunca são ilhas — a skill monta a cadeia (Baixo + Médio → Alto).
 - **Cobertura honesta:** toda auditoria declara o que varreu e o que ficou de fora. Um
   falso-negativo escondido é pior que um falso-positivo.
+
+## O que ela agrega (honesto)
+
+Contra um modelo forte — que já acha muito bug sozinho — o ganho **não é "achar mais" num
+trecho pequeno**: em fixtures controladas, skill e baseline empatam (o modelo forte gabarita
+as duas). Isso é esperado e a skill não esconde. O valor está em três lugares que o modelo
+**não entrega de graça**:
+
+- **Rigor e forma:** relatório estruturado, rastreio fonte→sink verificável, **disciplina de
+  falso-positivo** (nos testes: 0 decoy reportado como vulnerabilidade), cobertura declarada.
+- **Runtime / config / infra:** headers de segurança, flags de cookie, TLS mal configurado —
+  coisas que **não moram nas rotas** e escapam ao code review de código-fonte.
+- **Ferramental determinístico:** secret-scan / SAST / deps que pegam segredo commitado,
+  dependência com CVE e sink clássico — o que um raciocínio num ponto no tempo não pega.
+
+Onde ela comprovadamente rende mais é no **sistema real de múltiplos arquivos** (não no trecho
+isolado): num teste real achou mais que o baseline sem skill. **Ressalva honesta:** as
+medições são de N pequeno — sinal forte, ainda não prova estatística.
 
 ## Cobertura
 
@@ -70,8 +103,14 @@ git clone https://github.com/<seu-usuario>/security-audit-skill.git
 cp -r security-audit-skill ~/.claude/skills/security-audit
 ```
 
-Depois, no Claude Code: `/security-audit` — ou peça "audite a segurança disto", "tem furo
-aqui?", "threat model", "revisar antes do deploy".
+Ferramental opcional (recomendado — habilita `tools/scan.py`):
+
+```bash
+py -m pip install detect-secrets bandit pip-audit
+```
+
+Depois, no Claude Code: `/security-audit` — ou passe a **URL do sistema** e peça "audite a
+segurança disto", "tem furo aqui?", "threat model", "revisar antes do deploy".
 
 ## Contexto local (opcional, recomendado)
 

@@ -8,7 +8,7 @@ description: >-
   (CVSS/CWE/CAPEC), OU para investigar bug de concorrência/race condition, incidente ou
   causa-raiz que já resistiu a uma tentativa (não para bug trivial de UI/typo). Acione
   proativamente ao revisar rotas/endpoints, formulários, uploads, autenticação
-  (OAuth/JWT/SAML/OIDC), APIs, integrações externas (APIs de e-mail, provedores de dados, CRM, Stripe), edge/server
+  (OAuth/JWT/SAML/OIDC), APIs, integrações externas (Graph/SOC/CRM/Stripe), edge/server
   functions, deploy/CI-CD, containers ou features de IA/LLM. Cobre Flask/Python/Postgres,
   Supabase/RLS, React/TanStack, API security, cloud/CI-CD, auth/cripto, LLM/prompt-injection
   e OWASP Web + API Top 10. Whitebox por padrão; blackbox/DAST sob demanda quando o usuário
@@ -24,6 +24,20 @@ Você atua como um **segundo especialista extremamente criterioso** — o reviso
 2. **Debug avançado / root cause analysis** — investigar bugs difíceis, intermitentes, de concorrência ou de lógica até a causa-raiz, não o sintoma.
 
 Sobre sistemas **autorizados** — o critério é autorização, não quem escreveu o código. Estão no escopo: os apps do usuário E os sistemas da organização (a organização) construídos por qualquer pessoa da equipe. O trabalho é defensivo mesmo quando o raciocínio é ofensivo: pensar como atacante para blindar o que é da casa. **Quando o usuário aponta um alvo (repo, path ou URL), ele está afirmando autorização — leia e analise, não fique pedindo confirmação a cada passo.** O único freio real é propósito e propriedade: se algum dia o alvo for claramente infra de um terceiro sem relação com a organização e o pedido for para *atacar/explorar* (não blindar), aí sim pare. No fluxo normal da equipe, o alvo é da casa — prossiga.
+
+## Primeiro passo: peça o link do sistema (LINK-FIRST)
+
+**Antes de qualquer coisa, pergunte pela URL do sistema a auditar** — a auditoria começa pelo sistema **vivo**, não por um trecho de código solto. Um atacante real não abre o seu repositório; ele abre o seu site. Comece de onde ele começa.
+
+- Abra com: *"Qual é a URL do sistema que quer auditar? (E, se tiver, o repo/caminho do código.)"* Se o usuário já passou a URL ou o alvo na mensagem, **não repita a pergunta** — siga.
+- **Com URL** (o caminho que rende mais e torna a skill independente ponta-a-ponta):
+  1. **Fase 1 — invasor pelo link** (só-leitura, sem tocar o código ainda): superfície pública, headers de segurança, endpoints alcançáveis, comportamento de auth, redirect http→https, vazamento em erro. É a estreia natural do blackbox — a própria URL é o sinal de opt-in (ver `references/blackbox-dast.md`). Requisição que **muda estado** em produção → confirme antes.
+  2. **Fase 2 — confirmar no código**, se o repo/caminho estiver disponível: rastrear cada hipótese da Fase 1 até o sink; achar o controle **ausente**.
+  3. **Relatório por severidade** (Crítico primeiro), com cadeia de risco e correção.
+- **Sem URL (só código / diff / módulo):** siga direto no whitebox (o padrão) — não trave a auditoria esperando um link que não existe. Ainda assim, **hipotetize como invasor antes** de aceitar o que o código afirma.
+- **Só um link, sem código:** dá para rodar a Fase 1 inteira e entregar um relatório de superfície útil sozinha — é o que torna a skill utilizável por quem não tem o código em mãos.
+
+O resto do documento (dois modos, protocolo de 2 fases, metodologia) detalha *como* rodar cada fase. Esta seção só fixa **por onde entrar**: pelo link.
 
 ### Dois modos — whitebox é o padrão, blackbox é opt-in
 - **Whitebox (padrão, sempre):** ler o código-fonte, rastrear o dado ao sink. É o que roda por default em toda auditoria.
@@ -50,12 +64,11 @@ O jeito nº 1 de uma revisão vazar furo é ler o código primeiro e absorver a 
 0. **Calibre o esforço e declare o escopo.** O custo desta skill não é fixo — dimensione a superfície (diff/1 rota vs módulo vs repo inteiro) e gaste na proporção do **dano possível, não do tamanho do código** (uma rota de login curta merece mais escrutínio que 500 linhas de CRUD interno). Faça uma **triagem breadth-first barata primeiro**: varra rápido toda a superfície marcando os pontos quentes (entrada não confiável, authz, segredo, sink perigoso) **antes** de mergulhar fundo em qualquer arquivo — senão você gasta o orçamento no lugar errado e o furo mora no arquivo que não deu tempo de ver. Só então **profundidade nos pontos quentes**: o ritual completo (rastreio de taint, advogado-do-diabo, chaining, STRIDE) roda onde a triagem apontou, não em cada linha; código claramente inerte (constante, template estático, helper puro) recebe nota rápida. Declare em que profundidade rodou e **o que ficou de fora** — cobertura honesta é obrigatória (ver "Cobertura e honestidade" abaixo).
 1. **Entenda o sistema.** O que faz, quem usa, que dados guarda, quais são os papéis (admin/técnico/visualizador), o que é confiável e o que não é.
 2. **Mapeie a superfície de ataque.** Pontos de entrada, fronteiras de confiança, autenticação/autorização, dados sensíveis, integrações externas. (Detalhe em `references/threat-modeling.md`.)
-3. **Rode o ferramental antes de ler à mão.** Triagem automática primeiro; grep e leitura depois, para confirmar e achar o que a ferramenta não pega. Sugestões (rode o que existir no projeto):
-   - Secrets no histórico: `gitleaks detect` / `trufflehog` (pega por entropia — grep de `ghp_`/`sk-` não pega chave sem prefixo conhecido).
-   - SAST: `semgrep --config auto`, `bandit -r .` (Python).
-   - Dependências: `pip-audit`, `npm audit`.
-   - Imagem/container: `trivy fs .` / `trivy image`.
-   Grep é **triagem**, não o método — ele é local e não segue o dado entre arquivos.
+3. **Rode o ferramental antes de ler à mão.** Triagem automática primeiro; grep e leitura depois, para confirmar e achar o que a ferramenta não pega.
+   - **Runner cabeado:** `py tools/scan.py <caminho-do-alvo> [--include-deps]` orquestra **detect-secrets** (segredos), **bandit** (SAST Python) e **pip-audit** (CVE de deps), e roda gitleaks/semgrep/npm audit se estiverem instalados. Degrada com honestidade (ferramenta ausente = SKIPPED explícito) e agrupa por `test_id` (tipo raro/grave primeiro — para um B608 ruidoso não esconder um B323/B314). Instalar o trio: `py -m pip install detect-secrets bandit pip-audit`.
+   - **A saída é TRIAGEM, não veredito.** A ferramenta acha candidato; a skill confirma por rastreio (passo 5). Na estreia (10/07) o runner deu 226 candidatos bandit → **1 real** (`um_cliente_http.py` TLS off) + 78 B608 SQLi todos FP (o ERP parametriza com `?`). B608/B110 costumam ser FP; **B323 (TLS off), B314 (XXE), B105 (segredo), B310 (SSRF/scheme) valem checagem sempre**.
+   - Outras (fora do runner, rode se existirem): `trufflehog` (entropia no histórico git), `trivy fs .`/`trivy image` (container).
+   Grep é **triagem** também, não o método — é local e não segue o dado entre arquivos.
 4. **Identifique pontos fracos.** Varra classe por classe de falha, por ponto de entrada — usando o arquivo de referência da stack.
 5. **Confirme por rastreio de dados.** Para cada suspeita, siga o dado da fonte (input) ao sink (dano), cruzando arquivos se preciso. Ver definição de "Confirmado" em "Cobertura e honestidade".
 6. **Explique por que cada hipótese faz sentido** e classifique o risco (impacto × facilidade — CVSS/CWE em `references/threat-modeling.md`).

@@ -64,7 +64,8 @@
   <header>
     <span class="tag">Claude Code · Skill</span>
     <h1><span class="mono">security-audit</span><br>pensa como invasor,<br>depois investiga.</h1>
-    <p class="lede">Auditoria de segurança e root cause analysis de bugs difíceis. Não um scanner — um segundo especialista criterioso que acha o controle <em>ausente</em>.</p>
+    <p class="lede">Auditoria de segurança e root cause analysis de bugs difíceis. Não <em>só</em> um scanner — roda o ferramental e raciocina por cima; acha o controle <em>ausente</em>.</p>
+    <p class="lede" style="margin-top:12px;font-size:16px"><strong style="color:var(--acc)">Comece pelo link:</strong> dê a URL do sistema e ela audita de ponta a ponta — superfície pela URL, confirmação no código.</p>
     <div class="cta">
       <a class="btn p" href="https://github.com/EZJ3ATZ/security-audit-skill">Ver no GitHub →</a>
       <a class="btn s" href="#instalar">Instalar</a>
@@ -102,6 +103,17 @@
   </section>
 
   <section>
+    <h2>O que agrega sobre um modelo forte</h2>
+    <p style="margin-top:-6px;color:var(--mut);max-width:62ch">Um modelo forte já acha muito bug sozinho — em trechos pequenos, empata com a skill (e a skill não esconde isso). O ganho está onde o modelo não entrega de graça:</p>
+    <div class="grid">
+      <div class="card"><h3>Rigor e forma</h3><p>Rastreio fonte→sink verificável, disciplina de falso-positivo (0 decoy reportado nos testes), cobertura declarada.</p></div>
+      <div class="card"><h3>Runtime / config</h3><p>Headers, flags de cookie, TLS mal configurado — o que não mora nas rotas e escapa ao review de código-fonte.</p></div>
+      <div class="card"><h3>Ferramental determinístico</h3><p><code>tools/scan.py</code> orquestra secret-scan + SAST + deps. Pega segredo, dependência com CVE e sink que o raciocínio não pega.</p></div>
+      <div class="card"><h3>No sistema real</h3><p>No sistema de múltiplos arquivos (não no trecho) achou mais que o baseline. Ressalva honesta: N pequeno — sinal forte, ainda não prova.</p></div>
+    </div>
+  </section>
+
+  <section>
     <h2>Cobertura — referências carregadas sob demanda</h2>
     <table>
       <tr><td class="k">Flask / Python / Postgres</td><td><span class="f">flask-python.md</span></td></tr>
@@ -122,8 +134,11 @@
     <h2>Instalar</h2>
     <pre><span class="c"># clone e copie para o diretório de skills do Claude Code</span>
 git clone https://github.com/EZJ3ATZ/security-audit-skill.git
-cp -r security-audit-skill ~/.claude/skills/security-audit</pre>
-    <p style="color:var(--mut);font-size:14.5px">Depois, no Claude Code: <code>/security-audit</code> — ou peça <em>"tem furo aqui?"</em>, <em>"threat model"</em>, <em>"revisar antes do deploy"</em>.</p>
+cp -r security-audit-skill ~/.claude/skills/security-audit
+
+<span class="c"># ferramental opcional (habilita tools/scan.py)</span>
+py -m pip install detect-secrets bandit pip-audit</pre>
+    <p style="color:var(--mut);font-size:14.5px">Depois, no Claude Code: <code>/security-audit</code> — ou passe a <strong>URL do sistema</strong> e peça <em>"tem furo aqui?"</em>, <em>"threat model"</em>, <em>"revisar antes do deploy"</em>.</p>
   </section>
 
   <section>
