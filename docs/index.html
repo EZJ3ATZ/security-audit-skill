@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>security-audit — skill de auditoria de segurança para Claude Code</title>
+<meta name="description" content="Skill de Claude Code que audita segurança com mentalidade de invasor: protocolo de duas fases (hipótese antes do código), portão de validação e chaining.">
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151c; --panel2:#161b24; --line:#232b38;
+    --ink:#e6edf3; --mut:#9aa7b6; --dim:#6b7787;
+    --acc:#5eead4; --acc2:#38bdf8; --red:#fb7185; --amber:#fbbf24;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1100px 600px at 70% -10%,#12202a 0%,var(--bg) 55%);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  a{color:var(--acc2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd{font-family:var(--mono);font-size:.9em}
+  .tag{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:#0e1620}
+  header{padding:70px 0 34px}
+  h1{font-size:clamp(34px,6vw,54px);line-height:1.05;margin:18px 0 10px;letter-spacing:-.02em}
+  h1 .mono{font-family:var(--mono);color:var(--acc)}
+  .lede{font-size:clamp(17px,2.4vw,21px);color:var(--mut);max-width:44ch;margin:0}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:15px}
+  .btn.p{background:var(--acc);color:#04211c}
+  .btn.p:hover{background:#7ff0dd;text-decoration:none}
+  .btn.s{border:1px solid var(--line);color:var(--ink)}
+  .btn.s:hover{border-color:var(--acc);text-decoration:none}
+  section{padding:30px 0;border-top:1px solid var(--line)}
+  h2{font-size:13px;font-family:var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 20px;font-weight:600}
+  h3{margin:0 0 6px;font-size:18px}
+  .phases{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .phase{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:20px}
+  .phase .n{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.1em}
+  .phase.one{border-top:2px solid var(--red)}
+  .phase.two{border-top:2px solid var(--acc)}
+  .phase h3 .role{font-family:var(--mono);font-size:13px;color:var(--acc2)}
+  .phase p{margin:8px 0 0;color:var(--mut);font-size:14.5px}
+  .phase .quote{margin-top:12px;padding:10px 12px;border-left:2px solid var(--line);background:#0e131b;border-radius:0 8px 8px 0;font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+  .divider-note{text-align:center;color:var(--dim);font-size:13px;margin:16px 0 0;font-family:var(--mono)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h3{font-size:15px}
+  .card p{margin:6px 0 0;color:var(--mut);font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top;color:var(--mut)}
+  td.k{color:var(--ink);white-space:nowrap;width:1%;padding-right:22px}
+  td .f{font-family:var(--mono);font-size:12.5px;color:var(--acc2)}
+  pre{background:#080a0e;border:1px solid var(--line);border-radius:10px;padding:15px 16px;overflow-x:auto;font-family:var(--mono);font-size:13px;color:#cbd5e1}
+  pre .c{color:var(--dim)}
+  .ex{background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--amber);border-radius:0 12px 12px 0;padding:16px 18px;font-size:14.5px;color:var(--mut)}
+  .ex b{color:var(--ink)}
+  footer{padding:34px 0 60px;color:var(--dim);font-size:13px;border-top:1px solid var(--line)}
+  @media(max-width:640px){.phases,.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="tag">Claude Code · Skill</span>
+    <h1><span class="mono">security-audit</span><br>pensa como invasor,<br>depois investiga.</h1>
+    <p class="lede">Auditoria de segurança e root cause analysis de bugs difíceis. Não um scanner — um segundo especialista criterioso que acha o controle <em>ausente</em>.</p>
+    <div class="cta">
+      <a class="btn p" href="https://github.com/EZJ3ATZ/security-audit-skill">Ver no GitHub →</a>
+      <a class="btn s" href="#instalar">Instalar</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>O diferencial — protocolo invasor-primeiro</h2>
+    <p style="margin-top:-6px;color:var(--mut);max-width:62ch">O jeito nº 1 de uma revisão vazar furo é ler o código primeiro e absorver a moldura do autor — aí você não vê o controle que <em>deveria existir e não existe</em>. A skill separa hipótese de confirmação:</p>
+    <div class="phases">
+      <div class="phase one">
+        <div class="n">FASE 1</div>
+        <h3>Invasor <span class="role">— sem código</span></h3>
+        <p>Da arquitetura / papéis / URL, monta o dossiê de ataque (joias da coroa, fronteiras de confiança, STRIDE) e uma lista priorizada de hipóteses. Então <strong>para</strong>.</p>
+        <div class="quote">"se eu atacasse, tentaria X;<br>o controle Y deveria barrar" — <em>a verificar</em></div>
+      </div>
+      <div class="phase two">
+        <div class="n">FASE 2</div>
+        <h3>Investigador <span class="role">— código liberado</span></h3>
+        <p>Para cada hipótese, prova ou derruba por rastreio do dado até o sink. Anti-ancoragem: <strong>julga o código contra a hipótese</strong>, não a hipótese contra o código.</p>
+        <div class="quote">controle esperado ausente = achado,<br>mesmo que o código "pareça ok"</div>
+      </div>
+    </div>
+    <p class="divider-note">pense como invasor → me mostre o código → investigue</p>
+  </section>
+
+  <section>
+    <h2>Disciplina que separa relatório de ruído</h2>
+    <div class="grid">
+      <div class="card"><h3>Portão de validação</h3><p>Todo achado ≥Médio passa por 6 perguntas (alcançável? mitigação no caminho? cenário concreto? contraprova falhou? severidade contextual? fato ou hipótese?). Falhou uma → rebaixa.</p></div>
+      <div class="card"><h3>Confirmado ≠ suspeita</h3><p>"Confirmado" só com exploit observado ou rastreio de dados completo, fonte → sink, sem mitigação no caminho. Melhor 5 achados sólidos que 20 "pode ser".</p></div>
+      <div class="card"><h3>Chaining</h3><p>Achado nunca é ilha. Um Baixo (vaza schema no erro) + um Médio (gate fail-open) = um caminho Alto que nenhum abre sozinho.</p></div>
+      <div class="card"><h3>Cobertura honesta</h3><p>Toda auditoria declara o que varreu e o que ficou de fora. Um falso-negativo escondido é pior que um falso-positivo.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cobertura — referências carregadas sob demanda</h2>
+    <table>
+      <tr><td class="k">Flask / Python / Postgres</td><td><span class="f">flask-python.md</span></td></tr>
+      <tr><td class="k">Supabase / RLS / edge functions</td><td><span class="f">supabase-rls.md</span></td></tr>
+      <tr><td class="k">React / TanStack / front</td><td><span class="f">react-frontend.md</span></td></tr>
+      <tr><td class="k">API — OWASP API Top 10</td><td><span class="f">api-security.md</span> · BOLA / BFLA / BOPLA</td></tr>
+      <tr><td class="k">Auth & cripto</td><td><span class="f">auth-tokens.md</span> · OAuth2 / OIDC / JWT / SAML</td></tr>
+      <tr><td class="k">Cloud / CI-CD / supply chain</td><td><span class="f">cloud-supply-chain.md</span></td></tr>
+      <tr><td class="k">IA / LLM / prompt injection</td><td><span class="f">llm-security.md</span></td></tr>
+      <tr><td class="k">Threat model · CVSS/CWE · RCA</td><td><span class="f">threat-modeling.md</span></td></tr>
+      <tr><td class="k">OWASP Web Top 10 · severidade</td><td><span class="f">owasp-web.md</span> · régua canônica</td></tr>
+      <tr><td class="k">Blackbox / DAST</td><td><span class="f">blackbox-dast.md</span> · opt-in</td></tr>
+    </table>
+    <p style="color:var(--dim);font-size:13px;margin-top:14px">OWASP Web (2021) · API (2023) · LLM (2025) · CWE v4.x · CVSS v3.1. Com notas de CVEs recentes por stack.</p>
+  </section>
+
+  <section id="instalar">
+    <h2>Instalar</h2>
+    <pre><span class="c"># clone e copie para o diretório de skills do Claude Code</span>
+git clone https://github.com/EZJ3ATZ/security-audit-skill.git
+cp -r security-audit-skill ~/.claude/skills/security-audit</pre>
+    <p style="color:var(--mut);font-size:14.5px">Depois, no Claude Code: <code>/security-audit</code> — ou peça <em>"tem furo aqui?"</em>, <em>"threat model"</em>, <em>"revisar antes do deploy"</em>.</p>
+  </section>
+
+  <section>
+    <h2>Um furo que ela pega — "confused deputy"</h2>
+    <div class="ex">
+      Uma função de servidor lê dados com credencial privilegiada (service role, <b>ignora RLS</b>) e confia no <code>tenant_id</code> que veio do navegador. <b>Parece segura</b> — filtra por <code>tenant_id</code>. Mas como o <code>tenant_id</code> é do atacante e a RLS foi ignorada, o filtro não protege nada: qualquer usuário logado lê o recurso de qualquer tenant.<br><br>
+      A skill pega porque a Fase 1 hipotetiza <em>"authz por recurso tem que existir no servidor"</em> e a Fase 2 verifica se o pré-check usa o token do <b>usuário</b> (RLS ativa) antes do read privilegiado — não apenas se "tem um filtro".
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap" style="padding:0">
+      Escopo por <strong>autorização, não autoria</strong> · objetivo defensivo: achar, provar e corrigir para o dono.<br>
+      Skill escrita em português · método atemporal, notas de CVE datadas.
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
