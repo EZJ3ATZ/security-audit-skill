@@ -2,6 +2,21 @@
 
 Versionamento semântico. Método é atemporal; notas de CVE são datadas.
 
+## [1.2.0] — 2026-07-13
+### Adicionado
+- **`tools/schema_drift.py`** — runner só-leitura de deriva schema/RLS contra o banco real
+  (Postgres): RLS desligada, grants para `anon`, policies `USING/WITH CHECK (true)`, e diff
+  contra o que o código assume via `--expect` (whitelist de colunas por tabela). É o par de
+  banco do `scan.py`; degrada honesto (SQLite pula RLS; sem driver → SKIPPED).
+- **Metodologia "inconsistência entre camadas":** além da varredura classe-a-classe, cruzar
+  quem lê e quem escreve cada dado/estado sensível e tratar a contradição entre caminhos
+  como achado (SKILL.md — princípio novo + passo 4 do protocolo).
+- `references/supabase-rls.md`: seção "o git mente sobre RLS" — policy/grant mudam no
+  dashboard sem virar migration; como medir a deriva com o probe.
+
+### Mudado
+- Sanitização refinada (artefato de artigo duplicado eliminado).
+
 ## [1.1.0] — 2026-07-10
 ### Adicionado
 - **Link-first:** o primeiro passo passa a ser pedir a URL do sistema; a auditoria começa

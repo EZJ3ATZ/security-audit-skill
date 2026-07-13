@@ -56,9 +56,9 @@ O erro conceitual mais caro no front. Esconder um botão, um menu de admin, ou u
 
 ## Se o front usar Next.js: CVE-2025-29927 (⏱ vintage jul/2026)
 
-Se a autorização depende de **middleware do Next.js**, cheque a versão: **CVE-2025-29927** (crítica) — o header interno `x-middleware-subrequest`, se forjado no request, faz o Next **pular o middleware inteiro**, incluindo auth/authz. O atacante manda o header e alcança rota protegida sem passar pelo gate. Fix: Next ≥ 15.2.3 / 14.2.25 / 13.5.9 / 12.3.5, ou tirar/limpar o header na borda (proxy/CDN). ⚠ Reforça a regra de ouro: **authz no middleware do front não é fronteira** — o RLS/servidor tem que barrar de novo. (O app Supabase via Lovable costuma ser Vite+React, não Next — confirme o build antes de gastar tempo aqui.)
+Se a autorização depende de **middleware do Next.js**, cheque a versão: **CVE-2025-29927** (crítica) — o header interno `x-middleware-subrequest`, se forjado no request, faz o Next **pular o middleware inteiro**, incluindo auth/authz. O atacante manda o header e alcança rota protegida sem passar pelo gate. Fix: Next ≥ 15.2.3 / 14.2.25 / 13.5.9 / 12.3.5, ou tirar/limpar o header na borda (proxy/CDN). ⚠ Reforça a regra de ouro: **authz no middleware do front não é fronteira** — o RLS/servidor tem que barrar de novo. (O app de CS via Lovable costuma ser Vite+React, não Next — confirme o build antes de gastar tempo aqui.)
 
-## Prioridade ao auditar o front do usuário (um app Supabase/React — React/TanStack)
+## Prioridade ao auditar o front do usuário (app de CS / CRM — React/TanStack)
 
 1. Nenhum segredo sensível no bundle (service_role, chaves de integração). Só anon key.
 2. Toda checagem de role/permissão no front tem equivalente no servidor (RLS/edge function).

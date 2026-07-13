@@ -43,19 +43,19 @@ def ver_os(os_id):
     return os
 ```
 
-**Checagens específicas do um app Flask/Postgres:**
+**Checagens específicas do o ERP:**
 - O guard `@app.before_request` que bloqueia não-GET para `visualizador` cobre **todos** os blueprints? Um blueprint registrado sem passar pelo guard fura tudo. Confirme que o guard está no app, não em cada blueprint.
 - Ferramentas de manutenção/admin (Diagnóstico, Reprocessar, Verificar fantasmas, baixa em lote) exigem role admin **no servidor**? Esconder no frontend não protege — o endpoint tem que checar.
 - Autorização é só por role, ou também por recurso? Role `tecnico` que vê OS de qualquer empresa ainda é IDOR mesmo com role certo.
 
 ## Server-Side Request Forgery (SSRF)
 
-Onde o servidor faz uma requisição de saída (requests, urllib, httpx) com URL/host que o usuário influencia. Perigoso com integrações (integrações externas) e com metadata de cloud.
+Onde o servidor faz uma requisição de saída (requests, urllib, httpx) com URL/host que o usuário influencia. Perigoso com integrações (Graph, SOC, laboratório) e com metadata de cloud.
 
 **Grep:** `requests.get(`, `requests.post(`, `httpx`, `urlopen`, `urllib`, `fetch`, `session.get(`
 Veja se algum pedaço da URL vem de input (id de caixa, endpoint, hostname, redirect).
 
-**Risco:** usuário faz o servidor bater em `http://169.254.169.254/` (metadata), rede interna, ou caixa de e-mail que não deveria. Com Graph app-only lendo qualquer caixa do tenant, um endpoint que aceita o e-mail-alvo do usuário sem validar = leitura indevida.
+**Risco:** usuário faz o servidor bater em `http://169.254.169.254/` (metadata), rede interna, ou caixa de e-mail que não deveria. Com Graph app-only lendo qualquer caixa @empresa, um endpoint que aceita o e-mail-alvo do usuário sem validar = leitura indevida.
 
 **Correção:** whitelist de hosts/destinos permitidos; nunca deixe o usuário passar URL/host livre. Para Graph, o e-mail/caixa consultado deve ser derivado da sessão do usuário, não do request.
 
@@ -79,7 +79,7 @@ Veja se algum pedaço da URL vem de input (id de caixa, endpoint, hostname, redi
 Endpoint PUT/POST que joga o JSON inteiro no update, deixando o usuário setar campo que não deveria (ex: `role`, `is_admin`, `empresa_id`, `data_resultado`).
 
 **Grep:** `.update(request.json`, `**request.json`, `**data`, `for k, v in request.json`
-**Correção:** whitelist explícita de campos aceitos. (No app Flask isso já existe no PUT de amostradores — conferir que todo endpoint de escrita tem a mesma trava, não só esse.)
+**Correção:** whitelist explícita de campos aceitos. (No ERP isso já existe no PUT de amostradores — conferir que todo endpoint de escrita tem a mesma trava, não só esse.)
 
 ## Upload de arquivo
 

@@ -13,6 +13,11 @@ Verifique (via migrations, SQL, ou dashboard):
 - A política amarra a linha ao usuário certo? Padrão: `USING (auth.uid() = user_id)` ou via tabela de membership. Se compara com coluna que o próprio cliente pode setar, não vale.
 
 **Grep no repo:** `ENABLE ROW LEVEL SECURITY`, `CREATE POLICY`, `USING (`, `WITH CHECK (`, `auth.uid()`, `GRANT`, `to anon`, `to authenticated`
+
+**Mas o git mente sobre RLS.** O grep acima só vê o que está versionado — e policy/grant mudam no dashboard sem virar migration. O estado REAL de produção pode divergir do repo (RLS ligada numa migration e depois desligada à mão, grant para `anon` criado no console, policy `USING (true)` de debug esquecida). Essa **deriva** é a única classe que a leitura do código não pega — e onde um modelo forte não ajuda, porque não é uma questão de raciocínio, é de fato de produção ausente do contexto. Rode o probe contra o banco real:
+- `py tools/schema_drift.py --dsn postgres://... --expect expect.json` (só-leitura): lista tabelas com RLS off, grants para `anon`, policies com `USING/WITH CHECK = true`, e faz o diff contra o que você declarou que o código assume (`rls_required`, `no_anon_grants`, `no_permissive_policies`, whitelist de colunas por tabela). Sem `--expect` = inventário + heurística; com = diff código×realidade.
+- É o par de banco do `scan.py` (que cobre o working tree). Degrada honesto: SQLite → pula a camada RLS (não tem); sem driver psycopg → SKIPPED explícito.
+- Foi ponto cego real no app de CS (RLS/policy fora do git). Confirme cada achado no dashboard/SQL antes de reportar — o probe é triagem.
 Cruze: para cada `create table`, existe `enable row level security` + políticas para os 4 comandos?
 
 ## 2. Chaves: anon vs service_role
@@ -23,7 +28,7 @@ Cruze: para cada `create table`, existe `enable row level security` + políticas
 **Grep:** `service_role`, `SUPABASE_SERVICE`, `SERVICE_ROLE_KEY`, `eyJ` (prefixo de JWT — chave exposta), `VITE_SUPABASE`, `NEXT_PUBLIC_SUPABASE`
 Confirme: service_role só em variável de ambiente de servidor (edge function, back), nunca chega ao cliente.
 
-## 3. Edge / server functions — auth no servidor (o furo conhecido de um app Supabase)
+## 3. Edge / server functions — auth no servidor (o furo conhecido do app de CS)
 
 Este é o ponto que já mordeu antes: **função de servidor que executa ação privilegiada sem checar quem chamou.** RLS do banco pode estar perfeito, mas se uma edge function usa service_role (bypassa RLS) e não valida o chamador, qualquer um invoca e ela faz o trabalho sujo — ler e-mails internos, mandar e-mail "como a empresa", puxar dados de outra conta.
 
@@ -66,12 +71,12 @@ No Supabase é tentador esconder um botão no React e achar que protegeu. Não p
 
 ## 7. CVE/incidentes recentes (⏱ vintage jul/2026 — confira se saiu mais novo)
 
-- **CVE-2025-48757 — RLS desligado por padrão (o furo que mais atinge apps Lovable).** Tabela criada por SQL/Table Editor nasce **sem RLS**; sem o toggle "Enable RLS on new tables", quem tem a anon key lê/escreve tudo. Uma análise (mai/2025) achou **10,3% dos apps Lovable** com tabelas legíveis por qualquer um com a anon key. **O um app Supabase/React nasceu no Lovable → é a primeira coisa a conferir:** para CADA tabela, `ENABLE ROW LEVEL SECURITY` está ligado **E** há política real (não `USING(true)`) para os 4 comandos?
+- **CVE-2025-48757 — RLS desligado por padrão (o furo que mais atinge apps Lovable).** Tabela criada por SQL/Table Editor nasce **sem RLS**; sem o toggle "Enable RLS on new tables", quem tem a anon key lê/escreve tudo. Uma análise (mai/2025) achou **10,3% dos apps Lovable** com tabelas legíveis por qualquer um com a anon key. **O app de CS / CRM nasceu no Lovable → é a primeira coisa a conferir:** para CADA tabela, `ENABLE ROW LEVEL SECURITY` está ligado **E** há política real (não `USING(true)`) para os 4 comandos?
 - **Vazamento de `service_role` por edge function** — caminhos comuns: logar o `env` no boot, devolver mensagem de erro com detalhe de conexão, ou expor o **source map** da function. ~83% dos incidentes Supabase são má-configuração de RLS; o resto costuma ser chave vazada por um desses caminhos. Confirme: nenhuma function loga env nem devolve `str(e)` cru; source maps não publicados.
 
 ## Prioridade ao auditar os apps do usuário
 
-1. Toda edge/server function do um app Supabase/React: valida JWT + autoriza no servidor? (furo histórico)
+1. Toda edge/server function do app de CS / CRM: valida JWT + autoriza no servidor? (furo histórico)
 2. service_role não vaza para o front/bundle/log.
 3. RLS ligado + políticas reais (não `USING(true)`) em toda tabela com dado de cliente/PII.
 4. Buckets com PII não são públicos.

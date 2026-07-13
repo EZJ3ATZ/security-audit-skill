@@ -25,14 +25,14 @@ A saída do modelo tratada como confiável a jusante:
 - Saída vira SQL/comando/caminho → **injection/RCE**. Parametrize, valide.
 - Modelo "decide" um id/status e o código executa direto → o atacante que controla a entrada controla a decisão. Valide contra regra de negócio, não aceite o veredito cru.
 
-## LLM06 — Agência excessiva (o risco que dói no app Flask)
+## LLM06 — Agência excessiva (o risco que dói no ERP)
 
 Quanto mais o modelo *age* (não só responde), maior o dano de um injection. No seu pipeline, a IA extrai agentes, sugere plano, casa dados.
 
 - **A IA nunca deve executar ação irreversível/privilegiada sozinha** a partir de texto não confiável: concluir OS, dar baixa em amostrador, disparar e-mail, escrever no banco, reservar recurso. Se a extração alimenta uma dessas, um e-mail envenenado vira ação.
 - **Human-in-the-loop** para efeito colateral: o modelo *sugere*, uma pessoa (ou regra determinística) confirma.
 - **Ferramentas com escopo mínimo:** se o modelo chama tools, cada tool valida seus próprios args e permissões — não confie que o modelo "só vai chamar direito".
-- **Decisão automatizada envenenada:** parser que lê a OS e marca tipo de medição/agente pode ser levado a extrair algo falso. Confirme que a extração é *sugestão revisável*, não verdade que fecha fluxo. (No app Flask o técnico revisa o plano — confirme que não há caminho onde a extração aja sem revisão.)
+- **Decisão automatizada envenenada:** parser que lê a OS e marca tipo de medição/agente pode ser levado a extrair algo falso. Confirme que a extração é *sugestão revisável*, não verdade que fecha fluxo. (No ERP o técnico revisa o plano — confirme que não há caminho onde a extração aja sem revisão.)
 
 ## LLM injection via dado externo — mapa no seu pipeline
 
@@ -54,4 +54,4 @@ Cada seta é uma fronteira. O texto que entra pelo Graph é escrito por **tercei
 
 ## Contexto dos apps
 
-O pipeline e as três garantias (dado demarcado / extração sugere-não-age / API key no servidor) já estão em §"LLM injection via dado externo" e LLM06/LLM10 acima; o enquadramento datado dos apps (features de IA) em `contexto-local.md` (opcional — ver README). Gatilho a não esquecer: se uma feature de IA passar a **agir** (responder e-mail, mudar status), reavalie sob LLM06 **antes de subir** — é onde injection deixa de ser texto errado e vira ação errada.
+O pipeline e as três garantias (dado demarcado / extração sugere-não-age / API key no servidor) já estão em §"LLM injection via dado externo" e LLM06/LLM10 acima; o enquadramento datado dos apps (o assistente de IA, parsers) em `contexto-local.md`. Gatilho a não esquecer: se uma feature de IA passar a **agir** (responder e-mail, mudar status), reavalie sob LLM06 **antes de subir** — é onde injection deixa de ser texto errado e vira ação errada.

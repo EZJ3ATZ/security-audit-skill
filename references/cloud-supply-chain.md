@@ -7,9 +7,9 @@ O código pode estar limpo e o app cair mesmo assim: por um segredo commitado, u
 **Grep:** `SECRET`, `PASSWORD`, `API_KEY`, `TOKEN`, `ghp_`, `github_pat`, `sk-`, `xoxb-`, `Bearer `, `client_secret`, `service_role`, `-----BEGIN`, `.env`, `credentials`
 
 - **Segredo hardcoded no código / no repo** → qualquer um com acesso ao repo (ou ao bundle público) tem a chave. Mover para env var. Se já foi commitado, **rotacione** — apagar do HEAD não basta, fica no histórico.
-- **`.env` / `.pem` / `*.key` commitado** → confira `.gitignore` e o histórico (`git log --all --full-history -- .env`). O o script de deploy faz push por API — garanta que ele nunca empacote um arquivo de chave, tokens ou `.env` na lista de arquivos.
+- **`.env` / `.pem` / `*.key` commitado** → confira `.gitignore` e o histórico (`git log --all --full-history -- .env`). O `seu script de deploy` faz push por API — garanta que ele nunca empacote `crm.key`, tokens ou `.env` na lista de arquivos.
 - **Segredo em log** → token/header/`request` completo logado em produção. Vaza para quem lê log (Railway, Sentry).
-- **Escopo do token maior que o necessário** → o PAT do GitHub do o script de deploy só precisa de `contents:write` naquele repo. Um token `repo`+`admin` amplo é dano em massa se vazar. Escopo mínimo, expiração curta.
+- **Escopo do token maior que o necessário** → o PAT do GitHub do `seu script de deploy` só precisa de `contents:write` naquele repo. Um token `repo`+`admin` amplo é dano em massa se vazar. Escopo mínimo, expiração curta.
 
 ## Variáveis de ambiente e config de plataforma (Railway)
 
@@ -54,4 +54,4 @@ Pule esta seção salvo se houver `*.yaml` de k8s / Helm no repo. Se houver: Sec
 
 ## Contexto dos apps
 
-Detalhes datados (PAT do o script de deploy, escopo, o que já mordeu antes) → `contexto-local.md` (opcional — ver README). Princípio atemporal que fica aqui: **deploy automático no push de uma branch = o push É o deploy em produção**; não há gate de review, então quem escreve na branch escreve em produção — trate o pipeline como superfície de ataque de primeira classe. Supabase `service_role` (ignora RLS) nunca no front/bundle/log → supabase-rls.md.
+Detalhes datados (PAT do `seu script de deploy`, escopo, o que já mordeu antes) → `contexto-local.md`. Princípio atemporal que fica aqui: **deploy automático no push de uma branch = o push É o deploy em produção**; não há gate de review, então quem escreve na branch escreve em produção — trate o pipeline como superfície de ataque de primeira classe. Supabase `service_role` (ignora RLS) nunca no front/bundle/log → supabase-rls.md.

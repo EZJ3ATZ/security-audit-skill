@@ -53,14 +53,14 @@ Fluxo de terceiro (Microsoft Graph, Google). O perigo está nos parâmetros de f
 - **Cookie sem `HttpOnly; Secure; SameSite`** → roubo via XSS / envio em CSRF / trânsito em claro. Configure `SESSION_COOKIE_HTTPONLY=True`, `SECURE=True`, `SAMESITE="Lax"`.
 - **Sessão não expira / não invalida no logout** → sessão eterna reaproveitável. Defina expiração; `session.clear()` no logout.
 - **Sem rotação de id de sessão após login** → session fixation. Regenere a sessão ao autenticar.
-- **Papel/privilégio guardado no cookie sem re-checar** → se o cliente influencia, é escalonamento. Decisão de authz sempre revalidada no servidor a cada request (o guard `before_request` do app Flask faz isso — confirme que cobre tudo).
+- **Papel/privilégio guardado no cookie sem re-checar** → se o cliente influencia, é escalonamento. Decisão de authz sempre revalidada no servidor a cada request (o guard `before_request` do ERP faz isso — confirme que cobre tudo).
 
 ## Senha e reset
 
 - **Hash fraco** (MD5/SHA1/sem salt) → cracking. Use `bcrypt`/`argon2`/`scrypt`.
 - **Reset por token previsível/sem expiração/reutilizável** → takeover. Token aleatório longo, uso único, expira rápido, invalidado após uso.
 - **Login sem lockout/rate limit** → brute force. Ver owasp-web.md e flask-python.md §rate limiting. Não revele "usuário existe" vs "senha errada" (enumeração).
-- **Cadastro pendente / esqueci-senha** já existem no app Flask (auditoria 05/07 desatualizada nesse ponto) — revalide o fluxo de token mesmo assim.
+- **Cadastro pendente / esqueci-senha** já existem no ERP (auditoria 05/07 desatualizada nesse ponto) — revalide o fluxo de token mesmo assim.
 
 ## Criptografia aplicada — os erros que dão CVE
 
@@ -68,7 +68,7 @@ Cripto raramente quebra pelo algoritmo; quebra pelo **uso errado**. Procure:
 
 **Validação de TLS desabilitada (CWE-295) — MITM.** O mais grave e comum em código de integração.
 **Grep:** `verify=False`, `_create_unverified_context`, `CERT_NONE`, `InsecureRequestWarning`, `rejectUnauthorized: false`, `check_hostname = False`, `disable_warnings`
-- `requests.get(url, verify=False)` ou `ssl._create_default_https_context = ssl._create_unverified_context` → o cliente aceita **qualquer** certificado; um MITM lê/altera o tráfego (incl. token no header). ⚠ O o script de deploy do usuário faz exatamente isso — é achado, não conveniência. Correção: remover o bypass; se há erro de CA corporativa, apontar `verify=/caminho/ca.pem`, nunca desligar.
+- `requests.get(url, verify=False)` ou `ssl._create_default_https_context = ssl._create_unverified_context` → o cliente aceita **qualquer** certificado; um MITM lê/altera o tráfego (incl. token no header). ⚠ O `seu script de deploy` do usuário faz exatamente isso — é achado, não conveniência. Correção: remover o bypass; se há erro de CA corporativa, apontar `verify=/caminho/ca.pem`, nunca desligar.
 
 **Comparação não constante de segredo (CWE-208) — timing attack.**
 **Grep:** `==` / `!=` comparando token/HMAC/assinatura/senha-hash, `hmac.new(...).hexdigest() ==`
@@ -87,4 +87,4 @@ Cripto raramente quebra pelo algoritmo; quebra pelo **uso errado**. Procure:
 
 ## Contexto dos apps
 
-Já dito onde importa, não repito: caixa do Graph **deriva da sessão, não do request** (§OAuth acima + flask-python.md §SSRF); JWT do Supabase **verificado no servidor** e usuário derivado dele, não de id vindo do corpo (supabase-rls.md §3). Fatos datados dos apps → `contexto-local.md` (opcional — ver README).
+Já dito onde importa, não repito: caixa do Graph **deriva da sessão, não do request** (§OAuth acima + flask-python.md §SSRF); JWT do Supabase **verificado no servidor** e usuário derivado dele, não de id vindo do corpo (supabase-rls.md §3). Fatos datados dos apps → `contexto-local.md`.

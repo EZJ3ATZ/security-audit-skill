@@ -7,7 +7,7 @@ Este é o arquivo de método transversal — como estruturar a análise, nomear 
 Não varra às cegas. Primeiro monte o mapa; ele diz onde olhar e o que seria pior.
 
 1. **O que o sistema faz e o que protege** — que dados (PII de trabalhador, e-mail interno, credencial), que ações têm valor/risco (concluir OS, dar baixa, mandar e-mail como a empresa, mexer em faturamento).
-2. **Atores e papéis** — anônimo, técnico, admin, visualizador, integração (integrações externas (API de e-mail, provedores de dados, CRM)), atacante externo, insider. Para cada um: o que *pode* e o que *não deveria* poder.
+2. **Atores e papéis** — anônimo, técnico, admin, visualizador, integração (Graph/SOC/CRM), atacante externo, insider. Para cada um: o que *pode* e o que *não deveria* poder.
 3. **Fronteiras de confiança** — onde o dado cruza de "não confiável" para "confiável": request→servidor, front→edge function, e-mail de terceiro→pipeline, internet→banco. É na fronteira que a validação tem que existir.
 4. **Fluxo de dados** — siga o dado sensível da entrada ao repouso. Cada salto é um ponto de análise.
 5. **STRIDE por elemento** — para cada processo/fluxo/store, pergunte as 6:
@@ -58,7 +58,7 @@ Nenhum scanner acha isto, porque o código "funciona" — ele só permite algo q
 - **Confiar no cliente** — o front esconde o botão / desabilita o campo, mas o endpoint aceita mesmo assim. (Regra 9 do CLAUDE.md vira teste de segurança: ferramenta de manutenção "só admin" está protegida **no servidor** ou só sumiu da UI?)
 - **Contornar limite** — o teto/quota é checado onde? dá para burlar por outra rota?
 
-No app Flask isto é central: reserva de amostrador, conclusão de OS, baixa química, plano confirmado. Cada transição de estado é uma regra — teste pular, repetir e inverter cada uma.
+No ERP isto é central: reserva de amostrador, conclusão de OS, baixa química, plano confirmado. Cada transição de estado é uma regra — teste pular, repetir e inverter cada uma.
 
 ## Race conditions / concorrência (CWE-362)
 
@@ -73,7 +73,7 @@ Dois pedidos ao mesmo tempo veem o mesmo estado e agem — e o resultado viola a
 - **Constraint `UNIQUE`** para impedir o estado duplicado na origem (ex.: um amostrador só pode ter uma reserva ativa).
 - **Idempotência:** chave de idempotência para o mesmo pedido repetido não aplicar duas vezes.
 
-Padrão a caçar: um dry-run/checagem seguido de um write "incondicional" — confirme que a decisão final é **atômica no banco**, não um check-then-act na linguagem de aplicação entre dois requests concorrentes (o segundo sobrescreve o primeiro — TOCTOU / CWE-362).
+O `_sync_reserva_plano` com dry-run e o 409 de conflito no ERP já atacam isso — confirme que a reserva final é **atômica no banco**, não um check-then-act em Python entre dois requests concorrentes.
 
 ## Root Cause Analysis (debug avançado)
 
@@ -84,7 +84,7 @@ Mesma disciplina, alvo diferente: em vez de "como quebro?", "por que quebrou?". 
 3. **Hipóteses de causa** — liste as plausíveis (race, estado global, timezone/`data_*`, `None`/vazio, encoding/`\n`, watermark/sync que reverte, off-by-one). Não pare na primeira.
 4. **Prove qual é** — log no ponto certo, leitura do caminho de código, comparação de estado antes/depois. Separe fato de hipótese aqui também.
 5. **Causa-raiz, não sintoma** — se o fix é um `try/except` que engole, você tratou o sintoma. A causa é *por que* chegou ali.
-6. **Correção + regressão** — o fix resolve a raiz e não reabre outro (o histórico do app Flask tem casos: watermark de lab que revertia status, parser sem `/g` que trocava só a 1ª vírgula — bugs de causa sutil com sintoma amplo).
+6. **Correção + regressão** — o fix resolve a raiz e não reabre outro (o histórico do ERP tem casos: watermark de lab que revertia status, parser sem `/g` que trocava só a 1ª vírgula — bugs de causa sutil com sintoma amplo).
 
 Os "5 porquês" cabem bem: pergunte "por quê?" até a resposta ser um defeito acionável, não outro sintoma.
 
@@ -117,7 +117,7 @@ Ao mapear a superfície (passo 2 da metodologia), percorra as camadas e marque r
 
 `frontend → backend → APIs → banco → storage → cache → fila/mensageria → autenticação → autorização → logs → monitoramento → backups → integrações externas → infra/deploy`
 
-Nem todo app tem todas (o app Flask não tem fila; o app Supabase não tem cache próprio) — diga qual não se aplica e siga. O valor é a varredura sistemática, não preencher tudo.
+Nem todo app tem todas (o ERP não tem fila; o app de CS não tem cache próprio) — diga qual não se aplica e siga. O valor é a varredura sistemática, não preencher tudo.
 
 ---
 

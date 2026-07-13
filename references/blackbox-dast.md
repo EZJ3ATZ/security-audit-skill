@@ -2,13 +2,16 @@
 
 Complemento **opt-in** do whitebox. Aqui você não lê código — você bate no app rodando de fora e observa o comportamento real. Serve para **confirmar ou refutar** o que a análise estática levantou (o whitebox suspeita; o runtime prova) e para achar o que só aparece em produção: header ausente, flag de cookie, endpoint esquecido no ar, verbosidade de erro real.
 
-## Escopo — sistemas autorizados
+## Escopo — sistemas autorizados (toda a organização)
 
-O critério é **autorização**, não autoria. Em escopo: qualquer sistema de que o usuário/organização é dono ou tem permissão explícita para testar. **Quando o usuário aponta uma URL, ele está afirmando autorização — leia e teste.** Não fique pedindo confirmação de propriedade a cada URL dentro do escopo já declarado.
+O critério é **autorização**, não autoria. Em escopo: qualquer sistema da a organização, construído por qualquer pessoa da equipe. **Quando o usuário aponta uma URL, ele está afirmando autorização — leia e teste.** Não fique pedindo confirmação de propriedade a cada URL; o usuário é da equipe e o alvo é da casa.
 
-Alvos típicos: os apps do próprio usuário/organização (ex.: `https://seu-app.example.com/`) e qualquer app/URL interno que o usuário mandar analisar.
+Alvos típicos:
+- `https://seu-app.exemplo.com/` (o ERP)
+- app de CS / CRM
+- Qualquer app/URL da organização que o usuário mandar analisar (feito por colegas da equipe)
 
-**Único freio real:** propósito + propriedade. Se o alvo for claramente infra de um terceiro **sem relação com o usuário/organização** e o pedido for para *atacar/explorar em proveito próprio* (não blindar), pare — aí é crime (lei de uso indevido de computador, ex.: CFAA), não auditoria. No fluxo autorizado normal, o alvo é interno e o objetivo é corrigir. Prossiga.
+**Único freio real:** propósito + propriedade. Se algum dia o alvo for claramente infra de um terceiro **sem relação com a organização** e o pedido for para *atacar/explorar em proveito próprio* (não blindar), aí pare — aí é crime (Lei 12.737 / CFAA), não auditoria. No fluxo normal da equipe isso não acontece: o alvo é interno, o objetivo é corrigir. Prossiga.
 
 ## Quando ativar
 
@@ -21,7 +24,7 @@ Alvos típicos: os apps do próprio usuário/organização (ex.: `https://seu-ap
 ## Regra de segurança operacional (não quebrar produção)
 
 - **Default read-only.** Use `GET` e leitura de resposta. Nada de disparar `POST/PUT/DELETE` destrutivo contra produção.
-- Se precisar testar um fluxo de escrita (ex.: confirmar CSRF, testar mass-assignment), **confirme com o usuário antes** e prefira dado descartável / ambiente de staging. Deploy do app Flask é automático no `main` e o banco é o de produção — não há rede de segurança.
+- Se precisar testar um fluxo de escrita (ex.: confirmar CSRF, testar mass-assignment), **confirme com o usuário antes** e prefira dado descartável / ambiente de staging. Deploy do ERP é automático no `main` e o banco é o de produção — não há rede de segurança.
 - **Sem varredura agressiva.** Nada de brute force / fuzzing pesado / nuclei com mil templates contra um app single-instance no Railway — derruba o serviço (auto-DoS). Rate baixo, alvo cirúrgico.
 - Não exfiltrar PII real nas evidências — mascarar CPF/nome/e-mail nos exemplos do relatório.
 
@@ -29,7 +32,7 @@ Alvos típicos: os apps do próprio usuário/organização (ex.: `https://seu-ap
 
 ### Headers de segurança
 ```
-curl -sI https://seu-app.example.com/
+curl -sI https://seu-app.exemplo.com/
 ```
 Procure ausência de: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options`/CSP `frame-ancestors` (clickjacking), `Content-Security-Policy`. Ausência = achado de hardening (Baixo/Médio). Casa com owasp-web.md §headers.
 
@@ -66,4 +69,4 @@ curl -sI -H "Origin: https://evil.example" https://<host>/api/<algo>
 
 ## Fechar o laço com o whitebox
 
-Todo achado blackbox deve voltar ao código: header ausente → onde adicionar no Flask; endpoint alcançável → qual guard falhou (routes.py); erro verboso → o handler (app.py). O blackbox **prova o sintoma**; a correção mora no código. Reporte no mesmo template de achado (owasp-web.md), com **Status: Confirmado (runtime)** e a requisição/resposta como evidência (PII mascarada).
+Todo achado blackbox deve voltar ao código: header ausente → onde adicionar no Flask; endpoint alcançável → qual guard falhou (modulo.py); erro verboso → o handler (app.py). O blackbox **prova o sintoma**; a correção mora no código. Reporte no mesmo template de achado (owasp-web.md), com **Status: Confirmado (runtime)** e a requisição/resposta como evidência (PII mascarada).

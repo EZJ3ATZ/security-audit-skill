@@ -25,6 +25,32 @@ Roda as que existirem (degrada com honestidade — ausente vira `SKIPPED` explí
 (os `.exe` ficam em `%APPDATA%\Python\...\Scripts`, fora do PATH — por isso o runner invoca
 por `sys.executable -m <mod>`, não depende do PATH).
 
+## `schema_drift.py` — deriva código × banco (camada de dados)
+
+```
+py tools/schema_drift.py --dsn postgres://user:pass@host/db [--expect expect.json] [--json out.json]
+py tools/schema_drift.py --sqlite caminho.db --expect expect.json   # apps SQLite / self-test
+```
+
+Só-leitura. É o **par de banco do `scan.py`**: o `scan.py` cobre o working tree, este cobre o
+que o git **não** mostra — o estado real de produção. Pega a única classe que a leitura de
+código não vê (e onde um modelo forte não ajuda, porque é fato de prod, não raciocínio):
+
+| Checa | Severidade típica |
+|---|---|
+| Tabela de `rls_required` com **RLS off** em produção | CRÍTICO |
+| **GRANT para `anon`** (papel público do Supabase) | ALTO |
+| Policy com `USING`/`WITH CHECK` = **`true`** (não restringe nada) | ALTO |
+| Coluna **sensível** na whitelist de edição do cliente (mass assignment) | CRÍTICO |
+| Colunas reais **não classificadas** (todo escritor precisa cobrir — sync/import/job) | MÉDIO |
+| RLS on **sem policy** (deny-all — geralmente engano) | BAIXO |
+
+O `--expect` declara o que o código assume (`rls_required`, `no_anon_grants`,
+`no_permissive_policies`, `columns.<tabela>.{client_editable,sensitive}`) → o diff fecha o loop
+código×realidade. Degrada honesto: SQLite pula a camada RLS; sem `psycopg`/`psycopg2` → SKIPPED.
+Requer `py -m pip install "psycopg[binary]"` para Postgres/Supabase. Método em `references/supabase-rls.md`.
+Genérico (sem dado interno) → candidato a ir ao público no próximo `build_public.py`.
+
 ## Princípios (iguais aos do SKILL.md)
 
 - **A saída é TRIAGEM, não veredito.** A ferramenta acha candidato; a skill confirma por
